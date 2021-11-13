@@ -1,6 +1,8 @@
 name: Update farms
 
 on:
+  push:
+    branches: [ master ]
   schedule:
     # Every 20 minutes
     - cron: "*/20 * * * *"
