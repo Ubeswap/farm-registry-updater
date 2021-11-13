@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 const { newKit } = require("@celo/contractkit");
-const { fromWei, toWei, toBN } = require("web3-utils");
+const { toWei, toBN } = require("web3-utils");
 const { request, gql } = require("graphql-request");
 const { ethers } = require("ethers");
 
@@ -212,6 +212,9 @@ const loop = async () => {
     await main();
   } catch (e) {
     console.error(e);
+  }
+  if (process.env.RUN_ONCE) {
+    process.exit();
   }
   await new Promise((r) => setTimeout(r, LOOP_DELAY));
   await loop();
