@@ -12,6 +12,7 @@ const erc20Abi = require("../abis/IERC20.json");
 
 const FARM_REGISTRY_ADDRESS = "0xa2bf67e12EeEDA23C7cA1e5a34ae2441a17789Ec";
 const SECONDS_PER_YEAR = 60 * 60 * 24 * 7 * 52;
+const GAS_PRICE = toWei("0.2", "gwei");
 
 const kit = newKit("https://forno.celo.org");
 kit.addAccount(process.env.PRIVATE_KEY);
@@ -111,7 +112,7 @@ const main = async () => {
   //   console.log(hexName, address);
   //   await farmRegistry.methods
   //     .addFarmInfo(hexName, address)
-  //     .send({ from: WALLET, gasPrice: toWei("1", "gwei") });
+  //     .send({ from: WALLET, gasPrice: GAS_PRICE });
   // }
 
   const farmInfo = {};
@@ -202,7 +203,7 @@ const main = async () => {
         toWei(tvlUSD.toString()),
         toWei(rewardsUSDPerYear.toString())
       )
-      .send({ from: WALLET, gasPrice: toWei("1", "gwei") });
+      .send({ from: WALLET, gasPrice: GAS_PRICE });
   }
 };
 
