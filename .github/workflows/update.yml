@@ -26,3 +26,6 @@ jobs:
           cache: "yarn"
       - run: yarn
       - run: node src/index.js
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          RUN_ONCE: 1
