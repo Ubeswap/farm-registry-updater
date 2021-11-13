@@ -115,11 +115,6 @@ const main = async () => {
   //     .send({ from: WALLET, gasPrice: GAS_PRICE });
   // }
 
-  const farmInfo = {};
-  const initialFarmInfo = {
-    tvlUSD: 0,
-    rewardsUSDPerYear: 0,
-  };
   const { tokens } = await request(
     "https://api.thegraph.com/subgraphs/name/ubeswap/ubeswap",
     query

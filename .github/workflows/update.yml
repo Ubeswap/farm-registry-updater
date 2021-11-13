@@ -10,6 +10,7 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+    environment: updater
 
     strategy:
       matrix:
