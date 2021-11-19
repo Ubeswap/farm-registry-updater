@@ -172,7 +172,7 @@ const main = async () => {
           .mul(lpStaked)
           .div(lpTotalSupply),
         pairToken0Info.decimals,
-        pairToken0Price
+        token0Price
       );
       const token1StakedUSD = usdValue(
         toBN(await pairToken1.methods.balanceOf(lpToken.options.address).call())
