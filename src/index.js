@@ -166,12 +166,13 @@ const main = async () => {
         await lpToken.methods.balanceOf(currentFarm.options.address).call()
       );
       const lpTotalSupply = toBN(await lpToken.methods.totalSupply().call());
+      const token0Price = pairToken0.options.address.toLowerCase() === "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1".toLowerCase() ? 1 : pairToken0Info.derivedCUSD;
       const token0StakedUSD = usdValue(
         toBN(await pairToken0.methods.balanceOf(lpToken.options.address).call())
           .mul(lpStaked)
           .div(lpTotalSupply),
         pairToken0Info.decimals,
-        pairToken0Info.derivedCUSD
+        pairToken0Price
       );
       const token1StakedUSD = usdValue(
         toBN(await pairToken1.methods.balanceOf(lpToken.options.address).call())
