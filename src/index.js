@@ -127,85 +127,89 @@ const main = async () => {
   }, {});
 
   for (const [farmName, farmAddress] of farms) {
-    console.log(`Fetching ${farmName} @${farmAddress}`);
-    const farm = new kit.web3.eth.Contract(msrAbi, farmAddress);
+    try {
+      console.log(`Fetching ${farmName} @${farmAddress}`);
+      const farm = new kit.web3.eth.Contract(msrAbi, farmAddress);
 
-    // Get TVL
-    let currentFarm = farm;
-    let rewardsUSDPerYear = 0;
-    let tvlUSD = 0;
-    while (true) {
-      // Get yearly rewards
-      const rewardToken = await currentFarm.methods.rewardsToken().call();
-      const tokenInfo = tokenToInfo[rewardToken.toLowerCase()];
+      // Get TVL
+      let currentFarm = farm;
+      let rewardsUSDPerYear = 0;
+      let tvlUSD = 0;
+      while (true) {
+        // Get yearly rewards
+        const rewardToken = await currentFarm.methods.rewardsToken().call();
+        const tokenInfo = tokenToInfo[rewardToken.toLowerCase()];
 
-      const rewardRate = toBN(await currentFarm.methods.rewardRate().call());
-      const yearlyRewardRate = rewardRate.mul(toBN(SECONDS_PER_YEAR));
-      rewardsUSDPerYear += usdValue(
-        yearlyRewardRate,
-        tokenInfo.decimals,
-        tokenInfo.derivedCUSD
-      );
-
-      const lpToken = new kit.web3.eth.Contract(
-        pairAbi,
-        await currentFarm.methods.stakingToken().call()
-      );
-      const pairToken0 = new kit.web3.eth.Contract(
-        erc20Abi,
-        await lpToken.methods.token0().call()
-      );
-      const pairToken0Info =
-        tokenToInfo[pairToken0.options.address.toLowerCase()];
-      const pairToken1 = new kit.web3.eth.Contract(
-        erc20Abi,
-        await lpToken.methods.token1().call()
-      );
-      const pairToken1Info =
-        tokenToInfo[pairToken1.options.address.toLowerCase()];
-
-      const lpStaked = toBN(
-        await lpToken.methods.balanceOf(currentFarm.options.address).call()
-      );
-      const lpTotalSupply = toBN(await lpToken.methods.totalSupply().call());
-      const token0Price =
-        pairToken0.options.address.toLowerCase() ===
-        "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1".toLowerCase()
-          ? 1
-          : pairToken0Info.derivedCUSD;
-      const token0StakedUSD = usdValue(
-        toBN(await pairToken0.methods.balanceOf(lpToken.options.address).call())
-          .mul(lpStaked)
-          .div(lpTotalSupply),
-        pairToken0Info.decimals,
-        token0Price
-      );
-      const token1StakedUSD = usdValue(
-        toBN(await pairToken1.methods.balanceOf(lpToken.options.address).call())
-          .mul(lpStaked)
-          .div(lpTotalSupply),
-        pairToken1Info.decimals,
-        pairToken1Info.derivedCUSD
-      );
-      tvlUSD += token0StakedUSD + token1StakedUSD;
-
-      try {
-        currentFarm = new kit.web3.eth.Contract(
-          msrAbi,
-          await currentFarm.methods.externalStakingRewards().call()
+        const rewardRate = toBN(await currentFarm.methods.rewardRate().call());
+        const yearlyRewardRate = rewardRate.mul(toBN(SECONDS_PER_YEAR));
+        rewardsUSDPerYear += usdValue(
+          yearlyRewardRate,
+          tokenInfo.decimals,
+          tokenInfo.derivedCUSD
         );
-      } catch (e) {
-        break;
-      }
-    }
 
-    await farmRegistry.methods
-      .updateFarmData(
-        farmAddress,
-        toWei(tvlUSD.toString()),
-        toWei(rewardsUSDPerYear.toString())
-      )
-      .send({ from: WALLET, gasPrice: GAS_PRICE });
+        const lpToken = new kit.web3.eth.Contract(
+          pairAbi,
+          await currentFarm.methods.stakingToken().call()
+        );
+        const pairToken0 = new kit.web3.eth.Contract(
+          erc20Abi,
+          await lpToken.methods.token0().call()
+        );
+        const pairToken0Info =
+          tokenToInfo[pairToken0.options.address.toLowerCase()];
+        const pairToken1 = new kit.web3.eth.Contract(
+          erc20Abi,
+          await lpToken.methods.token1().call()
+        );
+        const pairToken1Info =
+          tokenToInfo[pairToken1.options.address.toLowerCase()];
+
+        const lpStaked = toBN(
+          await lpToken.methods.balanceOf(currentFarm.options.address).call()
+        );
+        const lpTotalSupply = toBN(await lpToken.methods.totalSupply().call());
+        const token0Price =
+          pairToken0.options.address.toLowerCase() ===
+            "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1".toLowerCase()
+            ? 1
+            : pairToken0Info.derivedCUSD;
+        const token0StakedUSD = usdValue(
+          toBN(await pairToken0.methods.balanceOf(lpToken.options.address).call())
+            .mul(lpStaked)
+            .div(lpTotalSupply),
+          pairToken0Info.decimals,
+          token0Price
+        );
+        const token1StakedUSD = usdValue(
+          toBN(await pairToken1.methods.balanceOf(lpToken.options.address).call())
+            .mul(lpStaked)
+            .div(lpTotalSupply),
+          pairToken1Info.decimals,
+          pairToken1Info.derivedCUSD
+        );
+        tvlUSD += token0StakedUSD + token1StakedUSD;
+
+        try {
+          currentFarm = new kit.web3.eth.Contract(
+            msrAbi,
+            await currentFarm.methods.externalStakingRewards().call()
+          );
+        } catch (e) {
+          break;
+        }
+      }
+
+      await farmRegistry.methods
+        .updateFarmData(
+          farmAddress,
+          toWei(tvlUSD.toString()),
+          toWei(rewardsUSDPerYear.toString())
+        )
+        .send({ from: WALLET, gasPrice: GAS_PRICE });
+    } catch (e) {
+      console.warn(`Failed to update farm ${farmName}`)
+    }
   }
 };
 
@@ -214,9 +218,10 @@ const loop = async () => {
     await main();
   } catch (e) {
     console.error(e);
+    process.exit(1)
   }
   if (process.env.RUN_ONCE) {
-    process.exit();
+    process.exit(0);
   }
   await new Promise((r) => setTimeout(r, LOOP_DELAY));
   await loop();
