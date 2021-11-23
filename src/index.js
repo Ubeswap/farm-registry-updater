@@ -11,6 +11,7 @@ const msrAbi = require("../abis/MSR.json");
 const erc20Abi = require("../abis/IERC20.json");
 
 const FARM_REGISTRY_ADDRESS = "0xa2bf67e12EeEDA23C7cA1e5a34ae2441a17789Ec";
+const STABIL_USD_ADDRESS = "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1"
 const SECONDS_PER_YEAR = 60 * 60 * 24 * 7 * 52;
 const GAS_PRICE = toWei("0.2", "gwei");
 
@@ -112,7 +113,7 @@ const main = async () => {
         const lpTotalSupply = toBN(await lpToken.methods.totalSupply().call());
         const token0Price =
           pairToken0.options.address.toLowerCase() ===
-            "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1".toLowerCase()
+            STABIL_USD_ADDRESS.toLowerCase()
             ? 1
             : pairToken0Info.derivedCUSD;
         const token0StakedUSD = usdValue(
@@ -122,12 +123,17 @@ const main = async () => {
           pairToken0Info.decimals,
           token0Price
         );
+        const token1Price =
+          pairToken1.options.address.toLowerCase() ===
+            STABIL_USD_ADDRESS.toLowerCase()
+            ? 1
+            : pairToken1Info.derivedCUSD;
         const token1StakedUSD = usdValue(
           toBN(await pairToken1.methods.balanceOf(lpToken.options.address).call())
             .mul(lpStaked)
             .div(lpTotalSupply),
           pairToken1Info.decimals,
-          pairToken1Info.derivedCUSD
+          token1Price,
         );
         tvlUSD += token0StakedUSD + token1StakedUSD;
 
