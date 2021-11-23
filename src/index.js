@@ -28,7 +28,7 @@ const WALLET = kit.web3.eth.accounts.privateKeyToAccount(
 const LOOP_DELAY = 15 * 60 * 1000; // Every 15 minutes
 const query = gql`
   {
-    tokens(first: 200) {
+    tokens(first: 200, subgraphError: allow) {
       id
       symbol
       name
@@ -118,7 +118,9 @@ const main = async () => {
   const { tokens } = await request(
     "https://api.thegraph.com/subgraphs/name/ubeswap/ubeswap",
     query
-  );
+  ).catch((e) => {
+    return e.response.data;
+  });
   const tokenToInfo = tokens.reduce((acc, token) => {
     acc[token.id] = token;
     return acc;
@@ -166,7 +168,11 @@ const main = async () => {
         await lpToken.methods.balanceOf(currentFarm.options.address).call()
       );
       const lpTotalSupply = toBN(await lpToken.methods.totalSupply().call());
-      const token0Price = pairToken0.options.address.toLowerCase() === "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1".toLowerCase() ? 1 : pairToken0Info.derivedCUSD;
+      const token0Price =
+        pairToken0.options.address.toLowerCase() ===
+        "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1".toLowerCase()
+          ? 1
+          : pairToken0Info.derivedCUSD;
       const token0StakedUSD = usdValue(
         toBN(await pairToken0.methods.balanceOf(lpToken.options.address).call())
           .mul(lpStaked)
