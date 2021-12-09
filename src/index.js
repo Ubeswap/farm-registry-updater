@@ -80,7 +80,7 @@ const main = async () => {
       let tvlUSD = 0;
       while (true) {
         // Get yearly rewards
-        const periodFinish = await farm.methods.periodFinish().call();
+        const periodFinish = await currentFarm.methods.periodFinish().call();
         if (periodFinish < now) {
           console.info(
             "periodFinish has already passed. Skipping rewardsUSD calculation"
