@@ -11,7 +11,7 @@ const msrAbi = require("../abis/MSR.json");
 const erc20Abi = require("../abis/IERC20.json");
 
 const FARM_REGISTRY_ADDRESS = "0xa2bf67e12EeEDA23C7cA1e5a34ae2441a17789Ec";
-const STABIL_USD_ADDRESS = "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1"
+const STABIL_USD_ADDRESS = "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1";
 const SECONDS_PER_YEAR = 60 * 60 * 24 * 7 * 52;
 const GAS_PRICE = toWei("0.2", "gwei");
 
@@ -68,6 +68,7 @@ const main = async () => {
     return acc;
   }, {});
 
+  const now = Date.now() / 1000;
   for (const [farmName, farmAddress] of farms) {
     try {
       console.log(`Fetching ${farmName} @${farmAddress}`);
@@ -79,16 +80,25 @@ const main = async () => {
       let tvlUSD = 0;
       while (true) {
         // Get yearly rewards
-        const rewardToken = await currentFarm.methods.rewardsToken().call();
-        const tokenInfo = tokenToInfo[rewardToken.toLowerCase()];
+        const periodFinish = await farm.methods.periodFinish().call();
+        if (periodFinish < now) {
+          console.info(
+            "periodFinish has already passed. Skipping rewardsUSD calculation"
+          );
+        } else {
+          const rewardToken = await currentFarm.methods.rewardsToken().call();
+          const tokenInfo = tokenToInfo[rewardToken.toLowerCase()];
 
-        const rewardRate = toBN(await currentFarm.methods.rewardRate().call());
-        const yearlyRewardRate = rewardRate.mul(toBN(SECONDS_PER_YEAR));
-        rewardsUSDPerYear += usdValue(
-          yearlyRewardRate,
-          tokenInfo.decimals,
-          tokenInfo.derivedCUSD
-        );
+          const rewardRate = toBN(
+            await currentFarm.methods.rewardRate().call()
+          );
+          const yearlyRewardRate = rewardRate.mul(toBN(SECONDS_PER_YEAR));
+          rewardsUSDPerYear += usdValue(
+            yearlyRewardRate,
+            tokenInfo.decimals,
+            tokenInfo.derivedCUSD
+          );
+        }
 
         const lpToken = new kit.web3.eth.Contract(
           pairAbi,
@@ -113,11 +123,13 @@ const main = async () => {
         const lpTotalSupply = toBN(await lpToken.methods.totalSupply().call());
         const token0Price =
           pairToken0.options.address.toLowerCase() ===
-            STABIL_USD_ADDRESS.toLowerCase()
+          STABIL_USD_ADDRESS.toLowerCase()
             ? 1
             : pairToken0Info.derivedCUSD;
         const token0StakedUSD = usdValue(
-          toBN(await pairToken0.methods.balanceOf(lpToken.options.address).call())
+          toBN(
+            await pairToken0.methods.balanceOf(lpToken.options.address).call()
+          )
             .mul(lpStaked)
             .div(lpTotalSupply),
           pairToken0Info.decimals,
@@ -125,15 +137,17 @@ const main = async () => {
         );
         const token1Price =
           pairToken1.options.address.toLowerCase() ===
-            STABIL_USD_ADDRESS.toLowerCase()
+          STABIL_USD_ADDRESS.toLowerCase()
             ? 1
             : pairToken1Info.derivedCUSD;
         const token1StakedUSD = usdValue(
-          toBN(await pairToken1.methods.balanceOf(lpToken.options.address).call())
+          toBN(
+            await pairToken1.methods.balanceOf(lpToken.options.address).call()
+          )
             .mul(lpStaked)
             .div(lpTotalSupply),
           pairToken1Info.decimals,
-          token1Price,
+          token1Price
         );
         tvlUSD += token0StakedUSD + token1StakedUSD;
 
@@ -155,7 +169,7 @@ const main = async () => {
         )
         .send({ from: WALLET, gasPrice: GAS_PRICE });
     } catch (e) {
-      console.warn(`Failed to update farm ${farmName}`)
+      console.warn(`Failed to update farm ${farmName}`, e);
     }
   }
 };
@@ -165,7 +179,7 @@ const loop = async () => {
     await main();
   } catch (e) {
     console.error(e);
-    process.exit(1)
+    process.exit(1);
   }
   if (process.env.RUN_ONCE) {
     process.exit(0);
