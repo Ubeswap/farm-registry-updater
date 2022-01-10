@@ -29,7 +29,7 @@ const WALLET = kit.web3.eth.accounts.privateKeyToAccount(
 const LOOP_DELAY = 15 * 60 * 1000; // Every 15 minutes
 const query = gql`
   {
-    tokens(first: 200, subgraphError: allow) {
+    tokens(first: 300, subgraphError: allow) {
       id
       symbol
       name
