@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 const { newKit } = require("@celo/contractkit");
-const { toWei, toBN } = require("web3-utils");
+const { toWei, toBN, toHex } = require("web3-utils");
 const { request, gql } = require("graphql-request");
 const { ethers } = require("ethers");
 
@@ -14,6 +14,7 @@ const FARM_REGISTRY_ADDRESS = "0xa2bf67e12EeEDA23C7cA1e5a34ae2441a17789Ec";
 const STABIL_USD_ADDRESS = "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1";
 const SECONDS_PER_YEAR = 60 * 60 * 24 * 7 * 52;
 const GAS_PRICE = toWei("0.2", "gwei");
+const CHAIN_ID = toHex(42220);
 
 const kit = newKit("https://forno.celo.org");
 kit.addAccount(process.env.PRIVATE_KEY);
@@ -167,7 +168,7 @@ const main = async () => {
           toWei(tvlUSD.toString()),
           toWei(rewardsUSDPerYear.toString())
         )
-        .send({ from: WALLET, gasPrice: GAS_PRICE });
+        .send({ from: WALLET, gasPrice: GAS_PRICE, chainId: CHAIN_ID });
     } catch (e) {
       console.warn(`Failed to update farm ${farmName}`, e);
     }
