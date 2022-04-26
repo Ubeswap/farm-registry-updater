@@ -1,9 +1,9 @@
 require("dotenv").config();
 
-const { newKit } = require("@celo/contractkit");
-const { toWei, toBN, toHex } = require("web3-utils");
-const { request, gql } = require("graphql-request");
-const { ethers } = require("ethers");
+const {newKit} = require("@celo/contractkit");
+const {toWei, toBN, toHex} = require("web3-utils");
+const {request, gql} = require("graphql-request");
+const {ethers} = require("ethers");
 
 const farmRegistryAbi = require("../abis/FarmRegistry.json");
 const pairAbi = require("../abis/UniswapPair.json");
@@ -12,9 +12,15 @@ const erc20Abi = require("../abis/IERC20.json");
 
 const FARM_REGISTRY_ADDRESS = "0xa2bf67e12EeEDA23C7cA1e5a34ae2441a17789Ec";
 const STABIL_USD_ADDRESS = "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1";
+const sIMMO_ADDRESS = "0xF71c475F566273CC549f597872c6432642D96deF";
+const IMMO_ADDRESS = "0xe685d21b7b0fc7a248a6a8e03b8db22d013aa2ee";
 const SECONDS_PER_YEAR = 60 * 60 * 24 * 7 * 52;
 const GAS_PRICE = toWei("0.2", "gwei");
 const CHAIN_ID = toHex(42220);
+
+const substitutions = {
+  [sIMMO_ADDRESS.toLowerCase()]: IMMO_ADDRESS.toLowerCase(),
+}
 
 const kit = newKit("https://forno.celo.org");
 kit.addAccount(process.env.PRIVATE_KEY);
@@ -40,6 +46,12 @@ const query = gql`
   }
 `;
 
+const substituteToken = (token) => {
+  const substitution = substitutions[token.toLowerCase()];
+  if (substitution) return substitution;
+  return token.toLowerCase();
+}
+
 // @amount - in wei
 // @decimals - in number
 // @priceUSD - in number
@@ -58,7 +70,7 @@ const main = async () => {
     e.returnValues.stakingAddress,
   ]);
 
-  const { tokens } = await request(
+  const {tokens} = await request(
     "https://api.thegraph.com/subgraphs/name/ubeswap/ubeswap",
     query
   ).catch((e) => {
@@ -88,7 +100,7 @@ const main = async () => {
           );
         } else {
           const rewardToken = await currentFarm.methods.rewardsToken().call();
-          const tokenInfo = tokenToInfo[rewardToken.toLowerCase()];
+          const tokenInfo = tokenToInfo[substituteToken(rewardToken)];
 
           const rewardRate = toBN(
             await currentFarm.methods.rewardRate().call()
@@ -124,7 +136,7 @@ const main = async () => {
         const lpTotalSupply = toBN(await lpToken.methods.totalSupply().call());
         const token0Price =
           pairToken0.options.address.toLowerCase() ===
-          STABIL_USD_ADDRESS.toLowerCase()
+            STABIL_USD_ADDRESS.toLowerCase()
             ? 1
             : pairToken0Info.derivedCUSD;
         const token0StakedUSD = usdValue(
@@ -138,7 +150,7 @@ const main = async () => {
         );
         const token1Price =
           pairToken1.options.address.toLowerCase() ===
-          STABIL_USD_ADDRESS.toLowerCase()
+            STABIL_USD_ADDRESS.toLowerCase()
             ? 1
             : pairToken1Info.derivedCUSD;
         const token1StakedUSD = usdValue(
@@ -168,7 +180,7 @@ const main = async () => {
           toWei(tvlUSD.toString()),
           toWei(rewardsUSDPerYear.toString())
         )
-        .send({ from: WALLET, gasPrice: GAS_PRICE, chainId: CHAIN_ID });
+        .send({from: WALLET, gasPrice: GAS_PRICE, chainId: CHAIN_ID});
     } catch (e) {
       console.warn(`Failed to update farm ${farmName}`, e);
     }
