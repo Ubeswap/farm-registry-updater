@@ -96,7 +96,7 @@ const main = async () => {
         const periodFinish = await currentFarm.methods.periodFinish().call();
         if (periodFinish < now) {
           console.info(
-            "periodFinish has already passed. Skipping rewardsUSD calculation"
+            `periodFinish has already passed for ${farmName}. Skipping rewardsUSD calculation`
           );
         } else {
           const rewardToken = await currentFarm.methods.rewardsToken().call();
