@@ -1,26 +1,27 @@
 require("dotenv").config();
 
-const {newKit} = require("@celo/contractkit");
-const {toWei, toBN, toHex} = require("web3-utils");
-const {request, gql} = require("graphql-request");
-const {ethers} = require("ethers");
+const { newKit } = require("@celo/contractkit");
+const { toWei, toBN, toHex, toChecksumAddress } = require("web3-utils");
+const { request, gql } = require("graphql-request");
+const { ethers } = require("ethers");
 
 const farmRegistryAbi = require("../abis/FarmRegistry.json");
 const pairAbi = require("../abis/UniswapPair.json");
 const msrAbi = require("../abis/MSR.json");
 const erc20Abi = require("../abis/IERC20.json");
+const multicallAbi = require("../abis/Multicall.json");
 
 const FARM_REGISTRY_ADDRESS = "0xa2bf67e12EeEDA23C7cA1e5a34ae2441a17789Ec";
 const STABIL_USD_ADDRESS = "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1";
 const sIMMO_ADDRESS = "0xF71c475F566273CC549f597872c6432642D96deF";
-const IMMO_ADDRESS = "0xe685d21b7b0fc7a248a6a8e03b8db22d013aa2ee";
+const IMMO_ADDRESS = "0xE685d21b7B0FC7A248a6A8E03b8Db22d013Aa2eE";
 const SECONDS_PER_YEAR = 60 * 60 * 24 * 7 * 52;
 const GAS_PRICE = toWei("0.2", "gwei");
 const CHAIN_ID = toHex(42220);
 
 const substitutions = {
-  [sIMMO_ADDRESS.toLowerCase()]: IMMO_ADDRESS.toLowerCase(),
-}
+  [sIMMO_ADDRESS]: IMMO_ADDRESS,
+};
 
 const kit = newKit("https://forno.celo.org");
 kit.addAccount(process.env.PRIVATE_KEY);
@@ -28,6 +29,13 @@ const farmRegistry = new kit.web3.eth.Contract(
   farmRegistryAbi,
   FARM_REGISTRY_ADDRESS
 );
+const multicall = new kit.web3.eth.Contract(
+  multicallAbi,
+  "0x75f59534dd892c1f8a7b172d639fa854d529ada3"
+);
+const farmInterface = new kit.web3.eth.Contract(msrAbi);
+const pairInterface = new kit.web3.eth.Contract(pairAbi);
+const erc20Interface = new kit.web3.eth.Contract(erc20Abi);
 
 const WALLET = kit.web3.eth.accounts.privateKeyToAccount(
   process.env.PRIVATE_KEY
@@ -47,10 +55,10 @@ const query = gql`
 `;
 
 const substituteToken = (token) => {
-  const substitution = substitutions[token.toLowerCase()];
+  const substitution = substitutions[toChecksumAddress(token)];
   if (substitution) return substitution;
-  return token.toLowerCase();
-}
+  return toChecksumAddress(token);
+};
 
 // @amount - in wei
 // @decimals - in number
@@ -70,95 +78,80 @@ const main = async () => {
     e.returnValues.stakingAddress,
   ]);
 
-  const {tokens} = await request(
+  const { tokens } = await request(
     "https://api.thegraph.com/subgraphs/name/ubeswap/ubeswap",
     query
   ).catch((e) => {
     return e.response.data;
   });
   const tokenToInfo = tokens.reduce((acc, token) => {
-    acc[token.id] = token;
+    const tokenAddr = toChecksumAddress(token.id);
+    acc[tokenAddr] = token;
     return acc;
   }, {});
 
   const now = Date.now() / 1000;
   for (const [farmName, farmAddress] of farms) {
     try {
-      console.log(`Fetching ${farmName} @${farmAddress}`);
-      const farm = new kit.web3.eth.Contract(msrAbi, farmAddress);
+      console.log(`\nFetching ${farmName} @${farmAddress}`);
 
       // Get TVL
-      let currentFarm = farm;
+      let currentFarm = new kit.web3.eth.Contract(msrAbi, farmAddress);
       let rewardsUSDPerYear = 0;
       let tvlUSD = 0;
+      let skip = false;
       while (true) {
         // Get yearly rewards
-        const periodFinish = await currentFarm.methods.periodFinish().call();
+        const { rewardToken, stakingToken, rewardRate, periodFinish } =
+          await farmInfo(farmAddress);
         if (periodFinish < now) {
           console.info(
             `periodFinish has already passed for ${farmName}. Skipping rewardsUSD calculation`
           );
-        } else {
-          const rewardToken = await currentFarm.methods.rewardsToken().call();
-          const tokenInfo = tokenToInfo[substituteToken(rewardToken)];
-
-          const rewardRate = toBN(
-            await currentFarm.methods.rewardRate().call()
-          );
-          const yearlyRewardRate = rewardRate.mul(toBN(SECONDS_PER_YEAR));
-          rewardsUSDPerYear += usdValue(
-            yearlyRewardRate,
-            tokenInfo.decimals,
-            tokenInfo.derivedCUSD
-          );
+          skip = true;
+          break;
         }
+        const tokenInfo = tokenToInfo[substituteToken(rewardToken)];
+        if (!tokenInfo) {
+          console.error(`No token info for ${rewardToken}`);
+          skip = true;
+          break;
+        }
+        const yearlyRewardRate = rewardRate.mul(toBN(SECONDS_PER_YEAR));
+        rewardsUSDPerYear += usdValue(
+          yearlyRewardRate,
+          tokenInfo.decimals,
+          tokenInfo.derivedCUSD
+        );
 
-        const lpToken = new kit.web3.eth.Contract(
-          pairAbi,
-          await currentFarm.methods.stakingToken().call()
+        const lpToken = new kit.web3.eth.Contract(pairAbi, stakingToken);
+        const {
+          token0,
+          token1,
+          totalSupply: lpTotalSupply,
+        } = await lpInfo(stakingToken);
+        const pairToken0Info = tokenToInfo[token0];
+        const pairToken1Info = tokenToInfo[token1];
+
+        const [token0Staked, token1Staked] = await multiBalanceOf(
+          [token0, token1],
+          stakingToken
         );
-        const pairToken0 = new kit.web3.eth.Contract(
-          erc20Abi,
-          await lpToken.methods.token0().call()
-        );
-        const pairToken0Info =
-          tokenToInfo[pairToken0.options.address.toLowerCase()];
-        const pairToken1 = new kit.web3.eth.Contract(
-          erc20Abi,
-          await lpToken.methods.token1().call()
-        );
-        const pairToken1Info =
-          tokenToInfo[pairToken1.options.address.toLowerCase()];
 
         const lpStaked = toBN(
           await lpToken.methods.balanceOf(currentFarm.options.address).call()
         );
-        const lpTotalSupply = toBN(await lpToken.methods.totalSupply().call());
         const token0Price =
-          pairToken0.options.address.toLowerCase() ===
-            STABIL_USD_ADDRESS.toLowerCase()
-            ? 1
-            : pairToken0Info.derivedCUSD;
+          token0 === STABIL_USD_ADDRESS ? 1 : pairToken0Info.derivedCUSD;
         const token0StakedUSD = usdValue(
-          toBN(
-            await pairToken0.methods.balanceOf(lpToken.options.address).call()
-          )
-            .mul(lpStaked)
-            .div(lpTotalSupply),
+          token0Staked.mul(lpStaked).div(lpTotalSupply),
           pairToken0Info.decimals,
           token0Price
         );
         const token1Price =
-          pairToken1.options.address.toLowerCase() ===
-            STABIL_USD_ADDRESS.toLowerCase()
-            ? 1
-            : pairToken1Info.derivedCUSD;
+          token1 === STABIL_USD_ADDRESS ? 1 : pairToken1Info.derivedCUSD;
         const token1StakedUSD = usdValue(
-          toBN(
-            await pairToken1.methods.balanceOf(lpToken.options.address).call()
-          )
-            .mul(lpStaked)
-            .div(lpTotalSupply),
+          token1Staked.mul(lpStaked).div(lpTotalSupply),
           pairToken1Info.decimals,
           token1Price
         );
@@ -174,17 +167,94 @@ const main = async () => {
         }
       }
 
-      await farmRegistry.methods
-        .updateFarmData(
-          farmAddress,
-          toWei(tvlUSD.toString()),
-          toWei(rewardsUSDPerYear.toString())
-        )
-        .send({from: WALLET, gasPrice: GAS_PRICE, chainId: CHAIN_ID});
+      if (!skip) {
+        const receipt = await farmRegistry.methods
+          .updateFarmData(
+            farmAddress,
+            toWei(tvlUSD.toString()),
+            toWei(rewardsUSDPerYear.toString())
+          )
+          .send({
+            from: WALLET,
+            gasPrice: GAS_PRICE,
+            chainId: CHAIN_ID,
+          });
+        console.log(
+          `Updated ${farmName} @${farmAddress}: https://explorer.celo.org/tx/${receipt.transactionHash}`
+        );
+      }
     } catch (e) {
       console.warn(`Failed to update farm ${farmName}`, e);
     }
   }
+};
+
+const farmInfo = async (farmAddr) => {
+  return await multicall.methods
+    .aggregate([
+      [farmAddr, farmInterface.methods.rewardsToken().encodeABI()],
+      [farmAddr, farmInterface.methods.stakingToken().encodeABI()],
+      [farmAddr, farmInterface.methods.rewardRate().encodeABI()],
+      [farmAddr, farmInterface.methods.periodFinish().encodeABI()],
+    ])
+    .call()
+    .then(({ returnData }) => {
+      const rewardToken = kit.web3.eth.abi.decodeParameters(
+        ["address"],
+        returnData[0]
+      )[0];
+      const stakingToken = kit.web3.eth.abi.decodeParameters(
+        ["address"],
+        returnData[1]
+      )[0];
+      const rewardRate = toBN(
+        kit.web3.eth.abi.decodeParameters(["uint256"], returnData[2])[0]
+      );
+      const periodFinish = Number(
+        kit.web3.eth.abi.decodeParameters(["uint256"], returnData[3])[0]
+      );
+      return { rewardToken, stakingToken, rewardRate, periodFinish };
+    });
+};
+
+const lpInfo = async (pairAddr) => {
+  return await multicall.methods
+    .aggregate([
+      [pairAddr, pairInterface.methods.token0().encodeABI()],
+      [pairAddr, pairInterface.methods.token1().encodeABI()],
+      [pairAddr, pairInterface.methods.totalSupply().encodeABI()],
+    ])
+    .call()
+    .then(({ returnData }) => {
+      const token0 = kit.web3.eth.abi.decodeParameters(
+        ["address"],
+        returnData[0]
+      )[0];
+      const token1 = kit.web3.eth.abi.decodeParameters(
+        ["address"],
+        returnData[1]
+      )[0];
+      const totalSupply = toBN(
+        kit.web3.eth.abi.decodeParameters(["uint256"], returnData[2])[0]
+      );
+      return { token0, token1, totalSupply };
+    });
+};
+
+const multiBalanceOf = async (tokenAddrs, of) => {
+  return await multicall.methods
+    .aggregate(
+      tokenAddrs.map((tokenAddr) => [
+        tokenAddr,
+        erc20Interface.methods.balanceOf(of).encodeABI(),
+      ])
+    )
+    .call()
+    .then(({ returnData }) =>
+      returnData.map((data) =>
+        toBN(kit.web3.eth.abi.decodeParameters(["uint256"], data)[0])
+      )
+    );
 };
 
 const loop = async () => {
