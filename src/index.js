@@ -124,7 +124,6 @@ const main = async () => {
           tokenInfo.derivedCUSD
         );
 
-        const lpToken = new kit.web3.eth.Contract(pairAbi, stakingToken);
         const {
           token0,
           token1,
@@ -133,14 +132,11 @@ const main = async () => {
         const pairToken0Info = tokenToInfo[token0];
         const pairToken1Info = tokenToInfo[token1];
 
-        const [token0Staked, token1Staked] = await multiBalanceOf(
-          [token0, token1],
-          stakingToken
+        const [token0Staked, token1Staked, lpStaked] = await multiBalanceOf(
+          [token0, token1, stakingToken],
+          [stakingToken, stakingToken, farmAddress]
         );
 
-        const lpStaked = toBN(
-          await lpToken.methods.balanceOf(currentFarm.options.address).call()
-        );
         const token0Price =
           token0 === STABIL_USD_ADDRESS ? 1 : pairToken0Info.derivedCUSD;
         const token0StakedUSD = usdValue(
@@ -241,12 +237,12 @@ const lpInfo = async (pairAddr) => {
     });
 };
 
-const multiBalanceOf = async (tokenAddrs, of) => {
+const multiBalanceOf = async (tokenAddrs, ofs) => {
   return await multicall.methods
     .aggregate(
-      tokenAddrs.map((tokenAddr) => [
+      tokenAddrs.map((tokenAddr, i) => [
         tokenAddr,
-        erc20Interface.methods.balanceOf(of).encodeABI(),
+        erc20Interface.methods.balanceOf(ofs[i]).encodeABI(),
       ])
     )
     .call()
