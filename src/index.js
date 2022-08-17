@@ -99,25 +99,17 @@ const main = async () => {
       let currentFarmAddr = farmAddress;
       let rewardsUSDPerYear = 0;
       let tvlUSD = 0;
-      let skip = false;
+      let numRewardFarms = 0;
       while (true) {
         // Get yearly rewards
         const { rewardToken, stakingToken, rewardRate, periodFinish } =
           await farmInfo(currentFarmAddr);
-        if (periodFinish < now) {
-          console.info(
-            `periodFinish has already passed for ${farmName}. Skipping rewardsUSD calculation`
-          );
-          // Only skip if we're not on the first farm
-          if (farmAddress === currentFarmAddr) {
-            skip = true;
-          }
-          break;
+        if (periodFinish > now) {
+          numRewardFarms++;
         }
         const tokenInfo = tokenToInfo[substituteToken(rewardToken)];
         if (!tokenInfo) {
           console.error(`No token info for ${rewardToken}`);
-          skip = true;
           break;
         }
         const yearlyRewardRate = rewardRate.mul(toBN(SECONDS_PER_YEAR));
@@ -169,7 +161,7 @@ const main = async () => {
         }
       }
 
-      if (!skip) {
+      if (numRewardFarms > 0) {
         const receipt = await farmRegistry.methods
           .updateFarmData(
             farmAddress,
@@ -183,6 +175,10 @@ const main = async () => {
           });
         console.log(
           `Updated ${farmName} @${farmAddress}: https://explorer.celo.org/tx/${receipt.transactionHash}`
+        );
+      } else {
+        console.log(
+          `Skipping ${farmName} @${farmAddress} because there are no reward farms`
         );
       }
     } catch (e) {
