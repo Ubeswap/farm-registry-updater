@@ -166,8 +166,6 @@ const main = async () => {
         }
       }
 
-      console.log(`${farmName} has $${tvlUSD.toString()} deposited`);
-      skip = true;
       if (!skip) {
         const receipt = await farmRegistry.methods
           .updateFarmData(
