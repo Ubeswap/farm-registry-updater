@@ -108,7 +108,10 @@ const main = async () => {
           console.info(
             `periodFinish has already passed for ${farmName}. Skipping rewardsUSD calculation`
           );
-          skip = true;
+          // Only skip if we're not on the first farm
+          if (farmAddress === currentFarmAddr) {
+            skip = true;
+          }
           break;
         }
         const tokenInfo = tokenToInfo[substituteToken(rewardToken)];
