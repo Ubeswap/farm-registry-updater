@@ -96,14 +96,14 @@ const main = async () => {
       console.log(`\nFetching ${farmName} @${farmAddress}`);
 
       // Get TVL
-      let currentFarm = new kit.web3.eth.Contract(msrAbi, farmAddress);
+      let currentFarmAddr = farmAddress;
       let rewardsUSDPerYear = 0;
       let tvlUSD = 0;
       let skip = false;
       while (true) {
         // Get yearly rewards
         const { rewardToken, stakingToken, rewardRate, periodFinish } =
-          await farmInfo(farmAddress);
+          await farmInfo(currentFarmAddr);
         if (periodFinish < now) {
           console.info(
             `periodFinish has already passed for ${farmName}. Skipping rewardsUSD calculation`
@@ -134,7 +134,7 @@ const main = async () => {
 
         const [token0Staked, token1Staked, lpStaked] = await multiBalanceOf(
           [token0, token1, stakingToken],
-          [stakingToken, stakingToken, farmAddress]
+          [stakingToken, stakingToken, currentFarmAddr]
         );
 
         const token0Price =
@@ -154,15 +154,20 @@ const main = async () => {
         tvlUSD += token0StakedUSD + token1StakedUSD;
 
         try {
-          currentFarm = new kit.web3.eth.Contract(
+          const nextFarmAddr = await new kit.web3.eth.Contract(
             msrAbi,
-            await currentFarm.methods.externalStakingRewards().call()
-          );
+            currentFarmAddr
+          ).methods
+            .externalStakingRewards()
+            .call();
+          currentFarmAddr = nextFarmAddr;
         } catch (e) {
           break;
         }
       }
 
+      console.log(`${farmName} has $${tvlUSD.toString()} deposited`);
+      skip = true;
       if (!skip) {
         const receipt = await farmRegistry.methods
           .updateFarmData(
