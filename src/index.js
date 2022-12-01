@@ -15,7 +15,8 @@ const FARM_REGISTRY_ADDRESS = "0xa2bf67e12EeEDA23C7cA1e5a34ae2441a17789Ec";
 const STABIL_USD_ADDRESS = "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1";
 const sIMMO_ADDRESS = "0xF71c475F566273CC549f597872c6432642D96deF";
 const IMMO_ADDRESS = "0xE685d21b7B0FC7A248a6A8E03b8Db22d013Aa2eE";
-const SECONDS_PER_YEAR = 60 * 60 * 24 * 7 * 52;
+const SECONDS_PER_DAY = 60 * 60 * 24;
+const SECONDS_PER_YEAR = SECONDS_PER_DAY * 7 * 52;
 const GAS_PRICE = toWei("0.2", "gwei");
 const CHAIN_ID = toHex(42220);
 
@@ -90,7 +91,7 @@ const main = async () => {
     return acc;
   }, {});
 
-  const now = Date.now() / 1000;
+  const oldestFarmTime = Date.now() / 1000 - SECONDS_PER_DAY;
   for (const [farmName, farmAddress] of farms) {
     try {
       console.log(`\nFetching ${farmName} @${farmAddress}`);
@@ -104,7 +105,7 @@ const main = async () => {
         // Get yearly rewards
         const { rewardToken, stakingToken, rewardRate, periodFinish } =
           await farmInfo(currentFarmAddr);
-        if (periodFinish > now) {
+        if (periodFinish > oldestFarmTime) {
           numRewardFarms++;
         }
         const tokenInfo = tokenToInfo[substituteToken(rewardToken)];
