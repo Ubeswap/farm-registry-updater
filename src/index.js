@@ -17,7 +17,6 @@ const sIMMO_ADDRESS = "0xF71c475F566273CC549f597872c6432642D96deF";
 const IMMO_ADDRESS = "0xE685d21b7B0FC7A248a6A8E03b8Db22d013Aa2eE";
 const SECONDS_PER_DAY = 60 * 60 * 24;
 const SECONDS_PER_YEAR = SECONDS_PER_DAY * 7 * 52;
-const GAS_PRICE = toWei("0.2", "gwei");
 const CHAIN_ID = toHex(42220);
 
 const substitutions = {
@@ -92,6 +91,7 @@ const main = async () => {
   }, {});
 
   const oldestFarmTime = Date.now() / 1000 - SECONDS_PER_DAY;
+  const gasPrice = await kit.web3.eth.getGasPrice();
   for (const [farmName, farmAddress] of farms) {
     try {
       console.log(`\nFetching ${farmName} @${farmAddress}`);
@@ -171,7 +171,6 @@ const main = async () => {
           )
           .send({
             from: WALLET,
-            gasPrice: GAS_PRICE,
             chainId: CHAIN_ID,
           });
         console.log(
