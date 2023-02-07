@@ -4,8 +4,8 @@ on:
   push:
     branches: [ master ]
   schedule:
-    # Every 20 minutes
-    - cron: "*/20 * * * *"
+    # Every 60 minutes
+    - cron: "*/60 * * * *"
 
 jobs:
   update:
