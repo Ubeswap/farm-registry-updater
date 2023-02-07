@@ -172,6 +172,7 @@ const main = async () => {
           .send({
             from: WALLET,
             chainId: CHAIN_ID,
+            gasPrice,
           });
         console.log(
           `Updated ${farmName} @${farmAddress}: https://explorer.celo.org/tx/${receipt.transactionHash}`
