@@ -10,6 +10,10 @@ const pairAbi = require("../abis/UniswapPair.json");
 const msrAbi = require("../abis/MSR.json");
 const erc20Abi = require("../abis/IERC20.json");
 const multicallAbi = require("../abis/Multicall.json");
+const {
+  CACHED_FARM_INFO_BLOCK,
+  cachedFarmInfoEvents,
+} = require("./cachedFarms");
 
 const FARM_REGISTRY_ADDRESS = "0xa2bf67e12EeEDA23C7cA1e5a34ae2441a17789Ec";
 const STABIL_USD_ADDRESS = "0x0a60c25Ef6021fC3B479914E6bcA7C03c18A97f1";
@@ -70,13 +74,15 @@ const usdValue = (amount, decimals, priceUSD) => {
 const main = async () => {
   const farms = (
     await farmRegistry.getPastEvents("FarmInfo", {
-      fromBlock: 9700000,
+      fromBlock: CACHED_FARM_INFO_BLOCK,
       toBlock: "latest",
     })
-  ).map((e) => [
-    ethers.utils.parseBytes32String(e.returnValues.farmName),
-    e.returnValues.stakingAddress,
-  ]);
+  )
+    .concat(cachedFarmInfoEvents)
+    .map((e) => [
+      ethers.utils.parseBytes32String(e.returnValues.farmName),
+      e.returnValues.stakingAddress,
+    ]);
 
   const { tokens } = await request(
     "https://api.thegraph.com/subgraphs/name/ubeswap/ubeswap",
