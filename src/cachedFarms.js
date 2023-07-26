@@ -1,4 +1,4 @@
-const CACHED_FARM_INFO_BLOCK = 19472601;
+const CACHED_FARM_INFO_BLOCK = 20545830;
 
 const cachedFarmInfoEvents = [
   {
