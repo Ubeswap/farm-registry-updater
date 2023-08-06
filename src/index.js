@@ -72,13 +72,13 @@ const usdValue = (amount, decimals, priceUSD) => {
   return Number(amount.div(toBN(10).pow(toBN(decimals))).toString()) * priceUSD;
 };
 const main = async () => {
-  const farms = (
-    await farmRegistry.getPastEvents("FarmInfo", {
-      fromBlock: CACHED_FARM_INFO_BLOCK,
-      toBlock: "latest",
-    })
-  )
-    .concat(cachedFarmInfoEvents)
+  // const farms = (
+  //   await farmRegistry.getPastEvents("FarmInfo", {
+  //     fromBlock: CACHED_FARM_INFO_BLOCK,
+  //     toBlock: "latest",
+  //   })
+  // )
+  const farms = cachedFarmInfoEvents
     .map((e) => [
       ethers.utils.parseBytes32String(e.returnValues.farmName),
       e.returnValues.stakingAddress,
