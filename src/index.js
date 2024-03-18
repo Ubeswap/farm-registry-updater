@@ -23,6 +23,30 @@ const SECONDS_PER_DAY = 60 * 60 * 24;
 const SECONDS_PER_YEAR = SECONDS_PER_DAY * 7 * 52;
 const CHAIN_ID = toHex(42220);
 
+const farmWhitelist = {
+  '0x534408e91d755a0d898e1c508e987e8d0615b52c': true,
+  '0x9584870281dd0d764748a2a234e2218ae544c614': true,
+  '0xd94e14358f66a3c0d13ae76ec45fe1c92dd7fb23': true,
+  '0xfaa5aff67582db0e9e581f52007c428ba71db405': true,
+  '0x3c8e2eb988f0890b68b5667c2fb867249e68e3c7': true,
+  '0xe4d9cab86f3419102984983e5a611442aaa3d864': true,
+  '0x6f79b6b3c00d11dbd05475be1240ad8f2c20bcb6': true,
+  '0xfeb0df4542e5394aac89383c135e2fc829812c6c': true,
+  '0x04103efcec2d475b43964e0bf976c2a7e5eab2c0': true,
+  '0x9caf0cd20c8ef7622eeb8db50e5bb4d407e38ae2': true,
+  '0xf4f8a7d430aa5d3bac057610bcbfc18f68d0b66d': true,
+  '0xbd61deb4459556d78b2133521af91a13eb21e20e': true,
+  '0xbfa2748a60976cd18b835c75c6a20328e9a72684': true,
+  '0x54097e406dfc00b9179167f9e20b26406ad42f0f': true,
+  '0xf725d0ed5987bd9e7ef725491c584a84e4212708': true,
+  '0xb5b6a87434f7a0ccc3dcc0de60d1ade3737ad263': true,
+  '0x833febc01260d8f3dcc98393c216a025e90b405d': true,
+  '0xed2ef7b098a0056f8fa73215f183ad908ac158f8': true,
+  '0x033ae9200dbfc107e84d682f286f315f36ac452d': true,
+  '0xda7f463c27ec862cfbf2369f3f74c364d050d93f': true,
+  '0x295d6f96081feb1569d9ce005f7f2710042ec6a1': true,
+}
+
 const substitutions = {
   [sIMMO_ADDRESS]: IMMO_ADDRESS,
 };
@@ -78,6 +102,19 @@ const main = async () => {
   //     toBlock: "latest",
   //   })
   // )
+
+  const receipt = await farmRegistry.methods
+    .addFarmInfo(
+      '0x5542452d43454c4f000000000000000000000000000000000000000000000000',
+      '0x534408e91d755a0d898e1c508e987e8d0615b52c',
+    )
+    .send({
+      from: WALLET,
+      chainId: CHAIN_ID,
+      gasPrice,
+    });
+    console.log(`UBE-CELO added: https://explorer.celo.org/tx/${receipt.transactionHash}`);
+
   const farms = cachedFarmInfoEvents
     .map((e) => [
       ethers.utils.parseBytes32String(e.returnValues.farmName),
@@ -168,7 +205,10 @@ const main = async () => {
         }
       }
 
-      if (numRewardFarms > 0) {
+      if (numRewardFarms > 0 || farmWhitelist[currentFarmAddr.toLowerCase()]) {
+        console.log(farmAddress)
+        console.log(tvlUSD.toString())
+        console.log(rewardsUSDPerYear.toString())
         const receipt = await farmRegistry.methods
           .updateFarmData(
             farmAddress,
