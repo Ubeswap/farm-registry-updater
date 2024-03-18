@@ -124,7 +124,7 @@ const main = async () => {
   const oldestFarmTime = Date.now() / 1000 - SECONDS_PER_DAY;
   const gasPrice = await kit.web3.eth.getGasPrice();
 
-  const receipt = await farmRegistry.methods
+  /*const receipt = await farmRegistry.methods
     .addFarmInfo(
       '0x5542452d43454c4f000000000000000000000000000000000000000000000000',
       '0x534408e91d755a0d898e1c508e987e8d0615b52c',
@@ -134,7 +134,7 @@ const main = async () => {
       chainId: CHAIN_ID,
       gasPrice,
     });
-    console.log(`UBE-CELO added: https://explorer.celo.org/tx/${receipt.transactionHash}`);
+    console.log(`UBE-CELO added: https://explorer.celo.org/tx/${receipt.transactionHash}`);*/
 
   for (const [farmName, farmAddress] of farms) {
     try {
