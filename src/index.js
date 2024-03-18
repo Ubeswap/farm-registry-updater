@@ -207,9 +207,7 @@ const main = async () => {
       }
 
       if (numRewardFarms > 0 || farmWhitelist[currentFarmAddr.toLowerCase()]) {
-        console.log(farmAddress)
-        console.log(tvlUSD.toString())
-        console.log(rewardsUSDPerYear.toString())
+        console.log(farmAddress, tvlUSD.toString(), rewardsUSDPerYear.toString())
         const receipt = await farmRegistry.methods
           .updateFarmData(
             farmAddress,
