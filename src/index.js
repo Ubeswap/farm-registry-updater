@@ -103,18 +103,6 @@ const main = async () => {
   //   })
   // )
 
-  const receipt = await farmRegistry.methods
-    .addFarmInfo(
-      '0x5542452d43454c4f000000000000000000000000000000000000000000000000',
-      '0x534408e91d755a0d898e1c508e987e8d0615b52c',
-    )
-    .send({
-      from: WALLET,
-      chainId: CHAIN_ID,
-      gasPrice,
-    });
-    console.log(`UBE-CELO added: https://explorer.celo.org/tx/${receipt.transactionHash}`);
-
   const farms = cachedFarmInfoEvents
     .map((e) => [
       ethers.utils.parseBytes32String(e.returnValues.farmName),
@@ -135,6 +123,19 @@ const main = async () => {
 
   const oldestFarmTime = Date.now() / 1000 - SECONDS_PER_DAY;
   const gasPrice = await kit.web3.eth.getGasPrice();
+
+  const receipt = await farmRegistry.methods
+    .addFarmInfo(
+      '0x5542452d43454c4f000000000000000000000000000000000000000000000000',
+      '0x534408e91d755a0d898e1c508e987e8d0615b52c',
+    )
+    .send({
+      from: WALLET,
+      chainId: CHAIN_ID,
+      gasPrice,
+    });
+    console.log(`UBE-CELO added: https://explorer.celo.org/tx/${receipt.transactionHash}`);
+
   for (const [farmName, farmAddress] of farms) {
     try {
       console.log(`\nFetching ${farmName} @${farmAddress}`);
