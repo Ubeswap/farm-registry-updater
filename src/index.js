@@ -110,7 +110,7 @@ const main = async () => {
     ]);
 
   const { tokens } = await request(
-    "https://api.thegraph.com/subgraphs/name/ubeswap/ubeswap",
+    "https://gateway-arbitrum.network.thegraph.com/api/3f1b45f0fd92b4f414a3158b0381f482/subgraphs/id/JWDRLCwj4H945xEkbB6eocBSZcYnibqcJPJ8h9davFi",
     query
   ).catch((e) => {
     return e.response.data;
